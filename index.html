@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>積木加法教學：直式位值與進位互動教具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Block Dragging styling */
+        .block-item {
+            cursor: grab;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            touch-action: none;
+        }
+        .block-item:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            z-index: 50;
+        }
+
+        /* Divider fade-out animation */
+        .divider-line {
+            transition: all 0.5s ease-in-out;
+        }
+        .divider-hidden {
+            opacity: 0;
+            max-height: 0;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            overflow: hidden;
+            border: none !important;
+        }
+
+        /* Pulse animation for action button */
+        @keyframes pulse-btn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .pulse-animation {
+            animation: pulse-btn 1.5s infinite ease-in-out;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex flex-col">
+
+    <!-- Top Header Bar -->
+    <header class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shrink-0 shadow-sm gap-2">
+        <div class="flex items-center space-x-2 shrink-0">
+            <div class="bg-indigo-600 text-white p-2 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-calculator text-xl"></i>
+            </div>
+            <h1 class="text-lg font-black text-slate-800 tracking-tight hidden sm:inline">加法積木與直式教具</h1>
+        </div>
+
+        <!-- Question Setup Buttons -->
+        <div class="flex items-center space-x-2 shrink-0">
+            <button onclick="generateRandomAddition()" class="bg-indigo-50 border-2 border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-1.5 px-3 rounded-xl transition flex items-center shadow-sm">
+                <i class="fa-solid fa-dice text-base mr-1.5 text-indigo-500"></i>隨機加法題
+            </button>
+            <button onclick="promptCustomAddition()" class="bg-emerald-50 border-2 border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-xs font-bold py-1.5 px-3 rounded-xl transition flex items-center shadow-sm">
+                <i class="fa-solid fa-pen-to-square text-base mr-1.5 text-emerald-500"></i>自訂算式
+            </button>
+        </div>
+
+        <!-- 5-Step Visual Stepper Bar -->
+        <div class="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs font-bold space-x-1 shrink-0 overflow-x-auto">
+            <div id="step-badge-1" class="px-2 py-1 rounded-lg bg-indigo-600 text-white flex items-center gap-1 transition-all">
+                <span>1</span><span class="hidden md:inline">呈現算式</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            <div id="step-badge-2" class="px-2 py-1 rounded-lg text-slate-500 flex items-center gap-1 transition-all">
+                <span>2</span><span class="hidden md:inline">排被加數</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            <div id="step-badge-3" class="px-2 py-1 rounded-lg text-slate-500 flex items-center gap-1 transition-all">
+                <span>3</span><span class="hidden md:inline">排加數</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            <div id="step-badge-4" class="px-2 py-1 rounded-lg text-slate-500 flex items-center gap-1 transition-all">
+                <span>4</span><span class="hidden md:inline">合併積木</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            <div id="step-badge-5" class="px-2 py-1 rounded-lg text-slate-500 flex items-center gap-1 transition-all">
+                <span>5</span><span class="hidden md:inline">進位核對</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Dynamic Instruction Banner -->
+    <div class="bg-amber-50 border-b border-amber-200 px-4 py-1.5 flex items-center justify-between text-xs font-bold text-amber-900 shrink-0">
+        <div class="flex items-center gap-2">
+            <span class="bg-amber-500 text-white px-2 py-0.5 rounded-md font-black">操作步驟</span>
+            <span id="guidance-text" class="text-amber-900 text-sm font-bold">請點選「隨機加法題」或「自訂算式」開始題目！</span>
+        </div>
+        <div class="text-xs text-amber-700 hidden sm:block font-normal">
+            <i class="fa-solid fa-lightbulb text-amber-500 mr-1"></i>依提示在下方操作區完成步驟
+        </div>
+    </div>
+
+    <!-- Main Content Container: Left 20%, Middle 56%, Right 24% -->
+    <main class="flex-1 flex overflow-hidden p-2 gap-2">
+
+        <!-- ================= LEFT PANEL (積木盒 選單) ================= -->
+        <section class="w-[20%] bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex flex-col justify-between shrink-0 overflow-y-auto">
+            <div>
+                <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                    <h2 class="font-black text-slate-700 text-base flex items-center">
+                        <i class="fa-solid fa-toolbox text-indigo-500 mr-2 text-lg"></i>積木盒
+                    </h2>
+                </div>
+
+                <!-- Target Placement Status Indicator -->
+                <div id="block-target-indicator" class="mb-3 bg-indigo-50 border border-indigo-200 rounded-xl p-2 text-center text-xs font-bold text-indigo-800">
+                    目前積木將放至：<span id="target-zone-name" class="font-black text-indigo-600 text-sm">【被加數區】</span>
+                </div>
+
+                <!-- Block Cards List -->
+                <div class="space-y-3">
+                    
+                    <!-- 100 Block (Blue) -->
+                    <div class="bg-blue-50 border-2 border-blue-400 rounded-xl p-2.5 flex flex-col items-center cursor-pointer hover:shadow-md transition active:scale-95 group"
+                         onclick="addBlock('hundreds')"
+                         title="點擊新增 百">
+                        <div class="flex justify-between w-full mb-1 pointer-events-none items-center">
+                            <span class="font-black text-blue-800 text-xs">百 (100)</span>
+                            <span class="text-[10px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full">+100</span>
+                        </div>
+                        <div class="w-14 h-14 relative my-1 pointer-events-none border border-blue-600 bg-blue-500 rounded flex items-center justify-center shadow-sm">
+                            <svg viewBox="0 0 100 100" class="w-full h-full opacity-40">
+                                <path d="M 10 0 L 10 100 M 20 0 L 20 100 M 30 0 L 30 100 M 40 0 L 40 100 M 50 0 L 50 100 M 60 0 L 60 100 M 70 0 L 70 100 M 80 0 L 80 100 M 90 0 L 90 100" stroke="#ffffff" stroke-width="1.5"/>
+                                <path d="M 0 10 L 100 10 M 0 20 L 100 20 M 0 30 L 100 30 M 0 40 L 100 40 M 0 50 L 100 50 M 0 60 L 100 60 M 0 70 L 100 70 M 0 80 L 100 80 M 0 90 L 90 90" stroke="#ffffff" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 10 Block (Yellow) -->
+                    <div class="bg-amber-50 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center cursor-pointer hover:shadow-md transition active:scale-95 group"
+                         onclick="addBlock('tens')"
+                         title="點擊新增 十">
+                        <div class="flex justify-between w-full mb-1 pointer-events-none items-center">
+                            <span class="font-black text-amber-800 text-xs">十 (10)</span>
+                            <span class="text-[10px] font-black bg-amber-500 text-white px-2 py-0.5 rounded-full">+10</span>
+                        </div>
+                        <div class="w-4 h-10 relative my-1 pointer-events-none border border-amber-600 bg-amber-400 rounded flex items-center justify-center shadow-sm">
+                            <svg viewBox="0 0 10 100" class="w-full h-full opacity-40">
+                                <path d="M 0 10 L 10 10 M 0 20 L 10 20 M 0 30 L 10 30 M 0 40 L 10 40 M 0 50 L 10 50 M 0 60 L 10 60 M 0 70 L 10 70 M 0 80 L 10 80 M 0 90 L 10 90" stroke="#000000" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 1 Block (White) -->
+                    <div class="bg-slate-50 border-2 border-slate-300 rounded-xl p-2.5 flex flex-col items-center cursor-pointer hover:shadow-md transition active:scale-95 group"
+                         onclick="addBlock('ones')"
+                         title="點擊新增 一">
+                        <div class="flex justify-between w-full mb-1 pointer-events-none items-center">
+                            <span class="font-black text-slate-700 text-xs">一 (1)</span>
+                            <span class="text-[10px] font-black bg-slate-600 text-white px-2 py-0.5 rounded-full">+1</span>
+                        </div>
+                        <div class="w-4 h-4 relative my-2 pointer-events-none border border-slate-400 bg-white rounded-sm shadow-sm"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Clear & Reset Controls -->
+            <div class="pt-2 border-t border-slate-200 space-y-2 mt-2">
+                <button onclick="clearCurrentActiveZone()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 px-2 rounded-xl transition flex items-center justify-center">
+                    <i class="fa-solid fa-eraser mr-1"></i>重排當前區
+                </button>
+                <button onclick="resetAllCanvas()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs py-2 px-2 rounded-xl transition flex items-center justify-center">
+                    <i class="fa-solid fa-rotate-left mr-1"></i>重新開始
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= MIDDLE PANEL (操作區：被加數 / 加數 分隔區) ================= -->
+        <section class="w-[56%] bg-slate-800 rounded-2xl border-2 border-slate-700 shadow-lg flex flex-col overflow-hidden relative shrink-0">
+            
+            <!-- Canvas Bar Header -->
+            <div class="bg-slate-900/90 border-b border-slate-700 px-3 py-1.5 flex items-center justify-between z-10 shrink-0 text-white">
+                <span class="text-sm font-bold flex items-center">
+                    <i class="fa-solid fa-layer-group text-indigo-400 mr-1.5"></i>積木操作區
+                </span>
+                <!-- Equation Banner inside Workspace Header -->
+                <div id="equation-display-header" class="text-amber-300 font-black text-base tracking-wider bg-slate-800 px-3 py-0.5 rounded-lg border border-slate-700">
+                    145 + 178 = ?
+                </div>
+            </div>
+
+            <!-- Structured Workspace (3 Columns: Hundreds, Tens, Ones) -->
+            <div id="workspace" class="flex-1 p-2 pb-16 overflow-y-auto grid grid-cols-3 gap-2 relative select-none">
+
+                <!-- 1. HUNDREDS COLUMN -->
+                <div class="bg-slate-900/50 border border-blue-500/30 rounded-xl p-2 flex flex-col h-full relative overflow-y-auto">
+                    <div class="text-xs font-black text-blue-400 mb-1.5 flex items-center shrink-0 border-b border-blue-500/20 pb-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block mr-1.5"></span>百位 (100)
+                    </div>
+
+                    <!-- Upper Zone: 被加數 -->
+                    <div id="hundreds-upper" class="flex flex-wrap gap-1.5 items-start content-start min-h-[60px] transition-all"></div>
+
+                    <!-- Divider Line -->
+                    <div id="hundreds-divider" class="divider-line my-2 border-b-2 border-dashed border-slate-600 relative flex items-center justify-center">
+                        <span class="bg-slate-800 text-[10px] text-slate-400 px-1 font-bold rounded">加</span>
+                    </div>
+
+                    <!-- Lower Zone: 加數 -->
+                    <div id="hundreds-lower" class="flex flex-wrap gap-1.5 items-start content-start min-h-[60px] transition-all"></div>
+                </div>
+
+                <!-- 2. TENS COLUMN -->
+                <div class="bg-slate-900/50 border border-amber-500/30 rounded-xl p-2 flex flex-col h-full relative overflow-y-auto">
+                    <div class="text-xs font-black text-amber-400 mb-1.5 flex items-center shrink-0 border-b border-amber-500/20 pb-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block mr-1.5"></span>十位 (10)
+                    </div>
+
+                    <!-- Upper Zone: 被加數 -->
+                    <div id="tens-upper" class="flex flex-wrap gap-1.5 items-start content-start min-h-[60px] transition-all"></div>
+
+                    <!-- Divider Line -->
+                    <div id="tens-divider" class="divider-line my-2 border-b-2 border-dashed border-slate-600 relative flex items-center justify-center">
+                        <span class="bg-slate-800 text-[10px] text-slate-400 px-1 font-bold rounded">加</span>
+                    </div>
+
+                    <!-- Lower Zone: 加數 -->
+                    <div id="tens-lower" class="flex flex-wrap gap-1.5 items-start content-start min-h-[60px] transition-all"></div>
+                </div>
+
+                <!-- 3. ONES COLUMN -->
+                <div class="bg-slate-900/50 border border-slate-400/30 rounded-xl p-2 flex flex-col h-full relative overflow-y-auto">
+                    <div class="text-xs font-black text-slate-300 mb-1.5 flex items-center shrink-0 border-b border-slate-400/20 pb-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-white inline-block mr-1.5"></span>個位 (1)
+                    </div>
+
+                    <!-- Upper Zone: 被加數 -->
+                    <div id="ones-upper" class="flex flex-wrap gap-1.5 items-start content-start min-h-[60px] transition-all"></div>
+
+                    <!-- Divider Line -->
+                    <div id="ones-divider" class="divider-line my-2 border-b-2 border-dashed border-slate-600 relative flex items-center justify-center">
+                        <span class="bg-slate-800 text-[10px] text-slate-400 px-1 font-bold rounded">加</span>
+                    </div>
+
+                    <!-- Lower Zone: 加數 -->
+                    <div id="ones-lower" class="flex flex-wrap gap-1.5 items-start content-start min-h-[60px] transition-all"></div>
+                </div>
+
+            </div>
+
+            <!-- Floating Main Step Action Button within Middle Panel -->
+            <div class="absolute bottom-4 right-4 z-30">
+                <button id="floating-step-btn" onclick="handleMainStepAction()" 
+                        class="bg-gradient-to-r from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white font-black text-sm py-2.5 px-5 rounded-2xl shadow-xl border-2 border-indigo-300 transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center gap-2 pulse-animation">
+                    <span id="floating-btn-text">開始擺被加數</span>
+                    <i id="floating-btn-icon" class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= RIGHT PANEL (24% Width): 直式對應計算表 ================= -->
+        <section class="w-[24%] bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex flex-col justify-between shrink-0 overflow-y-auto">
+            <div class="space-y-3">
+                
+                <!-- Section Title -->
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <h2 class="font-black text-slate-700 text-base flex items-center">
+                        <i class="fa-solid fa-square-poll-vertical text-indigo-500 mr-1.5 text-lg"></i>直式對應計算
+                    </h2>
+                </div>
+
+                <!-- Vertical Column Addition Table Container -->
+                <div class="border-2 border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-white p-3 font-mono">
+                    
+                    <!-- Table Place Header Row -->
+                    <div class="grid grid-cols-4 text-center font-black text-xs text-slate-500 pb-2 border-b border-slate-200">
+                        <div></div>
+                        <div class="text-blue-600 bg-blue-50 py-0.5 rounded">百位</div>
+                        <div class="text-amber-600 bg-amber-50 py-0.5 rounded">十位</div>
+                        <div class="text-slate-700 bg-slate-100 py-0.5 rounded">個位</div>
+                    </div>
+
+                    <!-- Carry Digits Indicator Row (進位標示) -->
+                    <div class="grid grid-cols-4 text-center font-black text-xs text-rose-500 h-5 my-1">
+                        <div class="text-[10px] text-slate-400 font-sans">進位</div>
+                        <div id="vertical-carry-hundreds" class="text-xs"></div>
+                        <div id="vertical-carry-tens" class="text-xs"></div>
+                        <div id="vertical-carry-ones" class="text-xs"></div>
+                    </div>
+
+                    <!-- Row 1: 被加數 -->
+                    <div class="grid grid-cols-4 text-center font-black text-2xl py-1 text-slate-800 items-center">
+                        <div class="text-xs text-slate-400 font-sans font-normal text-left pl-1">被加數</div>
+                        <div id="vertical-augend-hundreds">0</div>
+                        <div id="vertical-augend-tens">0</div>
+                        <div id="vertical-augend-ones">0</div>
+                    </div>
+
+                    <!-- Row 2: 加數 (+ Sign) -->
+                    <div class="grid grid-cols-4 text-center font-black text-2xl py-1 text-slate-800 items-center relative border-b-4 border-slate-800">
+                        <div class="text-base font-black text-indigo-600 text-left pl-1">+</div>
+                        <div id="vertical-addend-hundreds">0</div>
+                        <div id="vertical-addend-tens">0</div>
+                        <div id="vertical-addend-ones">0</div>
+                    </div>
+
+                    <!-- Row 3: 計算結果 (Result Sum) -->
+                    <div class="grid grid-cols-4 text-center font-black text-3xl py-2 text-indigo-600 bg-indigo-50/50 rounded-b-xl items-center mt-1">
+                        <div class="text-xs text-indigo-900 font-sans font-black text-left pl-1">合</div>
+                        <div id="vertical-sum-hundreds" class="text-blue-600">?</div>
+                        <div id="vertical-sum-tens" class="text-amber-500">?</div>
+                        <div id="vertical-sum-ones" class="text-slate-700">?</div>
+                    </div>
+                </div>
+
+                <!-- Step Summary Breakdown Box -->
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-1.5 text-xs text-indigo-900">
+                    <div class="font-black text-xs flex items-center justify-between text-indigo-900">
+                        <span><i class="fa-solid fa-list-check mr-1"></i>當前數字統計：</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 text-[11px] font-bold pt-1">
+                        <div class="bg-white p-1.5 rounded border border-indigo-100">
+                            被加數積木：<span id="summary-augend-val" class="font-black text-indigo-700">0</span>
+                        </div>
+                        <div class="bg-white p-1.5 rounded border border-indigo-100">
+                            加數積木：<span id="summary-addend-val" class="font-black text-indigo-700">0</span>
+                        </div>
+                    </div>
+                    <div class="bg-indigo-600 text-white p-1.5 rounded text-center font-black mt-1">
+                        積木總合：<span id="summary-total-val">0</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Action Controls -->
+            <div class="pt-2 border-t border-slate-200">
+                <button onclick="checkFinalResult()" id="verify-result-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs py-2 px-2 rounded-xl shadow transition flex items-center justify-center">
+                    <i class="fa-solid fa-circle-check mr-1.5 text-base"></i>檢查答案
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Custom Modal for Setting Addition Expression -->
+    <div id="custom-add-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h3 class="font-black text-slate-800 text-base flex items-center">
+                    <i class="fa-solid fa-pen-ruler text-indigo-600 mr-2"></i>設定加法算式
+                </h3>
+                <button onclick="closeCustomModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">被加數 (1 - 500)：</label>
+                    <input type="number" id="input-augend" min="1" max="500" value="145" 
+                           class="w-full border-2 border-indigo-200 rounded-xl px-3 py-1.5 text-xl font-black text-indigo-900 focus:outline-none focus:border-indigo-500 text-center">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">加數 (1 - 500)：</label>
+                    <input type="number" id="input-addend" min="1" max="500" value="178" 
+                           class="w-full border-2 border-indigo-200 rounded-xl px-3 py-1.5 text-xl font-black text-indigo-900 focus:outline-none focus:border-indigo-500 text-center">
+                </div>
+            </div>
+
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeCustomModal()" class="w-1/2 bg-slate-100 text-slate-700 font-bold text-xs py-2 rounded-xl hover:bg-slate-200 transition min-h-[40px]">
+                    取消
+                </button>
+                <button onclick="applyCustomAddition()" class="w-1/2 bg-indigo-600 text-white font-bold text-xs py-2 rounded-xl hover:bg-indigo-700 transition min-h-[40px]">
+                    確認設定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Notice Modal (Replacing alert) -->
+    <div id="notice-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-200 space-y-4 text-center">
+            <div id="notice-icon-bg" class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto text-xl">
+                <i id="notice-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <h3 id="notice-title" class="font-black text-slate-800 text-base">提示訊息</h3>
+            <p id="notice-message" class="text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-line"></p>
+            <button onclick="closeNoticeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition">
+                我知道了
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal (Replacing confirm) -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-200 space-y-4 text-center">
+            <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-black text-slate-800 text-base">確認繼續？</h3>
+            <p id="confirm-message" class="text-xs font-bold text-slate-600 leading-relaxed"></p>
+            <div class="flex space-x-2 pt-1">
+                <button onclick="closeConfirmModal(false)" class="w-1/2 bg-slate-100 text-slate-700 font-bold text-xs py-2 rounded-xl hover:bg-slate-200 transition">
+                    重新調整
+                </button>
+                <button onclick="closeConfirmModal(true)" class="w-1/2 bg-indigo-600 text-white font-bold text-xs py-2 rounded-xl hover:bg-indigo-700 transition">
+                    確定繼續
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Application Logic & Interactive State Management -->
+    <script>
+        let state = {
+            step: 1, // 1: Present, 2: Augend, 3: Addend, 4: Merge, 5: Regroup/Verify
+            targetAugend: 145,
+            targetAddend: 178,
+            augend: { hundreds: 0, tens: 0, ones: 0 },
+            addend: { hundreds: 0, tens: 0, ones: 0 },
+            merged: { hundreds: 0, tens: 0, ones: 0 },
+            isMerged: false
+        };
+
+        let pendingConfirmCallback = null;
+
+        window.onload = function() {
+            setQuestion(145, 178);
+        };
+
+        // Custom Modal Utility Functions
+        function showNotice(title, msg, iconClass = 'fa-solid fa-circle-info', bgClass = 'bg-indigo-100 text-indigo-600') {
+            document.getElementById('notice-title').textContent = title;
+            document.getElementById('notice-message').textContent = msg;
+            
+            const iconBg = document.getElementById('notice-icon-bg');
+            iconBg.className = `w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl ${bgClass}`;
+            document.getElementById('notice-icon').className = iconClass;
+
+            document.getElementById('notice-modal').classList.remove('hidden');
+        }
+
+        function closeNoticeModal() {
+            document.getElementById('notice-modal').classList.add('hidden');
+        }
+
+        function showConfirm(msg, onConfirm) {
+            document.getElementById('confirm-message').textContent = msg;
+            pendingConfirmCallback = onConfirm;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal(result) {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            if (result && pendingConfirmCallback) {
+                pendingConfirmCallback();
+            }
+            pendingConfirmCallback = null;
+        }
+
+        function setQuestion(aug, add) {
+            state.targetAugend = aug;
+            state.targetAddend = add;
+            state.step = 1;
+            state.isMerged = false;
+
+            state.augend = { hundreds: 0, tens: 0, ones: 0 };
+            state.addend = { hundreds: 0, tens: 0, ones: 0 };
+            state.merged = { hundreds: 0, tens: 0, ones: 0 };
+
+            document.getElementById('equation-display-header').textContent = `${aug} + ${add} = ?`;
+            
+            // Set vertical algorithm headers
+            document.getElementById('vertical-augend-hundreds').textContent = Math.floor(aug / 100);
+            document.getElementById('vertical-augend-tens').textContent = Math.floor((aug % 100) / 10);
+            document.getElementById('vertical-augend-ones').textContent = aug % 10;
+
+            document.getElementById('vertical-addend-hundreds').textContent = Math.floor(add / 100);
+            document.getElementById('vertical-addend-tens').textContent = Math.floor((add % 100) / 10);
+            document.getElementById('vertical-addend-ones').textContent = add % 10;
+
+            goToStep(1);
+            updateUI();
+        }
+
+        function generateRandomAddition() {
+            const aug = Math.floor(Math.random() * 250) + 25;
+            const add = Math.floor(Math.random() * 250) + 25;
+            setQuestion(aug, add);
+        }
+
+        function promptCustomAddition() {
+            document.getElementById('custom-add-modal').classList.remove('hidden');
+        }
+
+        function closeCustomModal() {
+            document.getElementById('custom-add-modal').classList.add('hidden');
+        }
+
+        function applyCustomAddition() {
+            const aug = parseInt(document.getElementById('input-augend').value, 10);
+            const add = parseInt(document.getElementById('input-addend').value, 10);
+
+            if (isNaN(aug) || isNaN(add) || aug < 1 || add < 1) {
+                showNotice('輸入錯誤', '請輸入有效的正整數！', 'fa-solid fa-circle-xmark', 'bg-rose-100 text-rose-600');
+                return;
+            }
+
+            closeCustomModal();
+            setQuestion(aug, add);
+        }
+
+        function goToStep(stepNum) {
+            state.step = stepNum;
+
+            // Update badge highlights
+            for (let i = 1; i <= 5; i++) {
+                const badge = document.getElementById(`step-badge-${i}`);
+                if (i === stepNum) {
+                    badge.className = "px-2 py-1 rounded-lg bg-indigo-600 text-white flex items-center gap-1 transition-all shadow-sm font-black";
+                } else if (i < stepNum) {
+                    badge.className = "px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 flex items-center gap-1 transition-all font-bold";
+                } else {
+                    badge.className = "px-2 py-1 rounded-lg text-slate-500 flex items-center gap-1 transition-all font-bold";
+                }
+            }
+
+            const guidanceText = document.getElementById('guidance-text');
+            const targetZoneName = document.getElementById('target-zone-name');
+            
+            // Workspace Floating Button elements
+            const floatingBtnText = document.getElementById('floating-btn-text');
+            const floatingBtnIcon = document.getElementById('floating-btn-icon');
+
+            if (stepNum === 1) {
+                guidanceText.textContent = `算式為【${state.targetAugend} + ${state.targetAddend}】。準備好請按「開始擺被加數」！`;
+                targetZoneName.textContent = "【準備中】";
+                floatingBtnText.textContent = "開始擺被加數";
+                floatingBtnIcon.className = "fa-solid fa-arrow-right";
+            } else if (stepNum === 2) {
+                guidanceText.textContent = `請用左側積木盒，在【上半部】擺出被加數 ${state.targetAugend}！`;
+                targetZoneName.textContent = "【被加數區 (上半部)】";
+                targetZoneName.className = "font-black text-indigo-600 text-sm";
+                floatingBtnText.textContent = "確認被加數";
+                floatingBtnIcon.className = "fa-solid fa-check";
+            } else if (stepNum === 3) {
+                guidanceText.textContent = `很好！接著請在【下半部】擺出加數 ${state.targetAddend}！`;
+                targetZoneName.textContent = "【加數區 (下半部)】";
+                targetZoneName.className = "font-black text-amber-600 text-sm";
+                floatingBtnText.textContent = "確認加數";
+                floatingBtnIcon.className = "fa-solid fa-check";
+            } else if (stepNum === 4) {
+                guidanceText.textContent = `被加數與加數都擺好了！按下「開始加法」將兩區積木融合在一起！`;
+                targetZoneName.textContent = "【合併兩數中】";
+                floatingBtnText.textContent = "合併積木 (進行加法)";
+                floatingBtnIcon.className = "fa-solid fa-object-group";
+            } else if (stepNum === 5) {
+                guidanceText.textContent = `積木已融合！若積木滿 10 個，請點選框框下的「滿10進位」按鈕！`;
+                targetZoneName.textContent = "【進位與結果核對】";
+                floatingBtnText.textContent = "檢查答案";
+                floatingBtnIcon.className = "fa-solid fa-circle-check";
+            }
+
+            // Show/Hide Dividers based on Step 4/5 (Merge)
+            const dividers = document.querySelectorAll('.divider-line');
+            if (stepNum >= 4 || state.isMerged) {
+                dividers.forEach(d => d.classList.add('divider-hidden'));
+            } else {
+                dividers.forEach(d => d.classList.remove('divider-hidden'));
+            }
+
+            updateUI();
+        }
+
+        function handleMainStepAction() {
+            if (state.step === 1) {
+                goToStep(2);
+            } else if (state.step === 2) {
+                // Confirm Augend
+                const curAugTotal = (state.augend.hundreds * 100) + (state.augend.tens * 10) + state.augend.ones;
+                if (curAugTotal !== state.targetAugend) {
+                    showConfirm(`目前擺出的被加數為 ${curAugTotal}，與目標 ${state.targetAugend} 不符。確定要繼續下一個步驟嗎？`, () => {
+                        goToStep(3);
+                    });
+                    return;
+                }
+                goToStep(3);
+            } else if (state.step === 3) {
+                // Confirm Addend
+                const curAddTotal = (state.addend.hundreds * 100) + (state.addend.tens * 10) + state.addend.ones;
+                if (curAddTotal !== state.targetAddend) {
+                    showConfirm(`目前擺出的加數為 ${curAddTotal}，與目標 ${state.targetAddend} 不符。確定要繼續下一個步驟嗎？`, () => {
+                        goToStep(4);
+                    });
+                    return;
+                }
+                goToStep(4);
+            } else if (state.step === 4) {
+                // Execute Merge!
+                mergeBlocks();
+                goToStep(5);
+            } else if (state.step === 5) {
+                checkFinalResult();
+            }
+        }
+
+        // Add block logic based on current active step
+        function addBlock(type) {
+            if (state.step === 1) {
+                goToStep(2);
+            }
+
+            if (state.step === 2) {
+                state.augend[type]++;
+            } else if (state.step === 3) {
+                state.addend[type]++;
+            } else if (state.step >= 4) {
+                if (!state.isMerged) mergeBlocks();
+                state.merged[type]++;
+            }
+
+            updateUI();
+        }
+
+        function removeBlock(zone, type) {
+            if (zone === 'augend' && state.augend[type] > 0) state.augend[type]--;
+            if (zone === 'addend' && state.addend[type] > 0) state.addend[type]--;
+            if (zone === 'merged' && state.merged[type] > 0) state.merged[type]--;
+            updateUI();
+        }
+
+        function clearCurrentActiveZone() {
+            if (state.step === 2) {
+                state.augend = { hundreds: 0, tens: 0, ones: 0 };
+            } else if (state.step === 3) {
+                state.addend = { hundreds: 0, tens: 0, ones: 0 };
+            } else if (state.step >= 4) {
+                state.merged = { hundreds: 0, tens: 0, ones: 0 };
+            }
+            updateUI();
+        }
+
+        function resetAllCanvas() {
+            setQuestion(state.targetAugend, state.targetAddend);
+        }
+
+        function mergeBlocks() {
+            state.isMerged = true;
+            state.merged = {
+                hundreds: state.augend.hundreds + state.addend.hundreds,
+                tens: state.augend.tens + state.addend.tens,
+                ones: state.augend.ones + state.addend.ones
+            };
+            
+            document.querySelectorAll('.divider-line').forEach(d => d.classList.add('divider-hidden'));
+            updateUI();
+        }
+
+        // Regroup / Carrying operation
+        function executeRegroup(type) {
+            if (type === 'ones' && state.merged.ones >= 10) {
+                state.merged.ones -= 10;
+                state.merged.tens += 1;
+                document.getElementById('guidance-text').textContent = "🎉 太棒了！10個「一」成功合成為 1個「十」！";
+            } else if (type === 'tens' && state.merged.tens >= 10) {
+                state.merged.tens -= 10;
+                state.merged.hundreds += 1;
+                document.getElementById('guidance-text').textContent = "🎉 好厲害！10個「十」成功合成為 1個「百」！";
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            if (!state.isMerged) {
+                renderBlockGroup('hundreds-upper', state.augend.hundreds, 'augend', 'hundreds');
+                renderBlockGroup('tens-upper', state.augend.tens, 'augend', 'tens');
+                renderBlockGroup('ones-upper', state.augend.ones, 'augend', 'ones');
+
+                renderBlockGroup('hundreds-lower', state.addend.hundreds, 'addend', 'hundreds');
+                renderBlockGroup('tens-lower', state.addend.tens, 'addend', 'tens');
+                renderBlockGroup('ones-lower', state.addend.ones, 'addend', 'ones');
+            } else {
+                renderBlockGroup('hundreds-upper', state.merged.hundreds, 'merged', 'hundreds');
+                renderBlockGroup('tens-upper', state.merged.tens, 'merged', 'tens');
+                renderBlockGroup('ones-upper', state.merged.ones, 'merged', 'ones');
+
+                document.getElementById('hundreds-lower').innerHTML = '';
+                document.getElementById('tens-lower').innerHTML = '';
+                document.getElementById('ones-lower').innerHTML = '';
+            }
+
+            // Update Breakdown Values
+            const augTotal = (state.augend.hundreds * 100) + (state.augend.tens * 10) + state.augend.ones;
+            const addTotal = (state.addend.hundreds * 100) + (state.addend.tens * 10) + state.addend.ones;
+            
+            document.getElementById('summary-augend-val').textContent = augTotal;
+            document.getElementById('summary-addend-val').textContent = addTotal;
+
+            const combinedTotal = state.isMerged 
+                ? (state.merged.hundreds * 100) + (state.merged.tens * 10) + state.merged.ones 
+                : augTotal + addTotal;
+
+            document.getElementById('summary-total-val').textContent = combinedTotal;
+
+            updateVerticalAlgorithmBoard();
+        }
+
+        function renderBlockGroup(elementId, count, zone, type) {
+            const container = document.getElementById(elementId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Group 10 blocks inside a semi-transparent mask with an inline regroup button when merged
+            if (zone === 'merged' && count >= 10 && (type === 'ones' || type === 'tens')) {
+                
+                // Group Container Box (Semi-transparent mask)
+                const groupWrapper = document.createElement('div');
+                groupWrapper.className = 'w-full my-1.5 p-2 rounded-xl border-2 border-dashed flex flex-col items-center justify-center relative transition-all shadow-md';
+                
+                if (type === 'ones') {
+                    groupWrapper.className += ' bg-amber-500/20 border-amber-400/80 shadow-[0_0_15px_rgba(245,158,11,0.25)]';
+                } else if (type === 'tens') {
+                    groupWrapper.className += ' bg-blue-500/20 border-blue-400/80 shadow-[0_0_15px_rgba(59,130,246,0.25)]';
+                }
+
+                // Mask Header Badge
+                const labelBadge = document.createElement('div');
+                labelBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full mb-1.5 text-white shadow-sm flex items-center gap-1';
+                if (type === 'ones') {
+                    labelBadge.className += ' bg-amber-600';
+                    labelBadge.innerHTML = '<i class="fa-solid fa-sparkles"></i> 滿 10 個一 (滿十換一十)';
+                } else {
+                    labelBadge.className += ' bg-blue-600';
+                    labelBadge.innerHTML = '<i class="fa-solid fa-sparkles"></i> 滿 10 個十 (滿十換一百)';
+                }
+                groupWrapper.appendChild(labelBadge);
+
+                // Blocks Container inside Mask (Exactly 10 Blocks)
+                const blocksBox = document.createElement('div');
+                blocksBox.className = 'flex flex-wrap gap-1.5 items-center justify-center p-1 bg-slate-900/40 rounded-lg border border-white/10 w-full';
+
+                for (let i = 0; i < 10; i++) {
+                    blocksBox.appendChild(createBlockDOM(zone, type));
+                }
+                groupWrapper.appendChild(blocksBox);
+
+                // Regroup Action Button located directly BELOW the masked box
+                const regroupBtn = document.createElement('button');
+                regroupBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    executeRegroup(type);
+                };
+                regroupBtn.className = 'mt-2 text-xs font-black py-1.5 px-3 rounded-xl shadow-lg transition flex items-center gap-1.5 transform hover:scale-105 active:scale-95 cursor-pointer pulse-animation';
+                if (type === 'ones') {
+                    regroupBtn.className += ' bg-amber-400 hover:bg-amber-300 text-slate-900 border border-amber-200';
+                    regroupBtn.innerHTML = '<i class="fa-solid fa-arrows-to-circle text-sm"></i> 滿10進位 (合成1個十) ➔';
+                } else {
+                    regroupBtn.className += ' bg-blue-500 hover:bg-blue-400 text-white border border-blue-300';
+                    regroupBtn.innerHTML = '<i class="fa-solid fa-arrows-to-circle text-sm"></i> 滿100進位 (合成1個百) ➔';
+                }
+                groupWrapper.appendChild(regroupBtn);
+
+                container.appendChild(groupWrapper);
+
+                // Render remaining items (count - 10) below/outside the grouped mask box
+                if (count > 10) {
+                    const remainingLabel = document.createElement('div');
+                    remainingLabel.className = 'text-[10px] font-bold text-slate-400 mt-2 mb-1 w-full text-left pl-1';
+                    remainingLabel.textContent = '剩餘積木：';
+                    container.appendChild(remainingLabel);
+
+                    const remainingBox = document.createElement('div');
+                    remainingBox.className = 'flex flex-wrap gap-1.5 items-start content-start w-full';
+                    for (let i = 10; i < count; i++) {
+                        remainingBox.appendChild(createBlockDOM(zone, type));
+                    }
+                    container.appendChild(remainingBox);
+                }
+
+            } else {
+                // Standard rendering when count < 10 or not merged
+                for (let i = 0; i < count; i++) {
+                    container.appendChild(createBlockDOM(zone, type));
+                }
+            }
+        }
+
+        function updateVerticalAlgorithmBoard() {
+            const carryTens = (state.isMerged && state.merged.ones < 10 && (state.augend.ones + state.addend.ones >= 10)) ? '¹' : '';
+            const carryHundreds = (state.isMerged && state.merged.tens < 10 && (state.augend.tens + state.addend.tens >= 10)) ? '¹' : '';
+
+            document.getElementById('vertical-carry-tens').textContent = carryTens;
+            document.getElementById('vertical-carry-hundreds').textContent = carryHundreds;
+
+            if (state.step >= 4 || state.isMerged) {
+                document.getElementById('vertical-sum-hundreds').textContent = state.merged.hundreds;
+                document.getElementById('vertical-sum-tens').textContent = state.merged.tens;
+                document.getElementById('vertical-sum-ones').textContent = state.merged.ones;
+            } else {
+                document.getElementById('vertical-sum-hundreds').textContent = '?';
+                document.getElementById('vertical-sum-tens').textContent = '?';
+                document.getElementById('vertical-sum-ones').textContent = '?';
+            }
+        }
+
+        function createBlockDOM(zone, type) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'block-item relative group flex items-center justify-center rounded transition shrink-0 cursor-pointer hover:opacity-80 active:scale-95';
+            wrapper.title = '點擊移除 1 個';
+
+            wrapper.onclick = (e) => {
+                e.stopPropagation();
+                removeBlock(zone, type);
+            };
+
+            if (type === 'hundreds') {
+                wrapper.className += ' w-12 h-12 bg-blue-600 border border-blue-300 rounded shadow';
+                wrapper.innerHTML = `
+                    <svg viewBox="0 0 100 100" class="w-full h-full pointer-events-none opacity-70">
+                        <path d="M 10 0 L 10 100 M 20 0 L 20 100 M 30 0 L 30 100 M 40 0 L 40 100 M 50 0 L 50 100 M 60 0 L 60 100 M 70 0 L 70 100 M 80 0 L 80 100 M 90 0 L 90 100" stroke="#93c5fd" stroke-width="1.5"/>
+                        <path d="M 0 10 L 100 10 M 0 20 L 100 20 M 0 30 L 100 30 M 0 40 L 100 40 M 0 50 L 100 50 M 0 60 L 100 60 M 0 70 L 70 70 M 0 80 L 80 80 M 0 90 L 90 90" stroke="#93c5fd" stroke-width="1.5"/>
+                    </svg>`;
+            } else if (type === 'tens') {
+                wrapper.className += ' w-2.5 h-12 bg-amber-400 border border-amber-200 rounded shadow-sm';
+                wrapper.innerHTML = `
+                    <svg viewBox="0 0 10 100" class="w-full h-full pointer-events-none opacity-70">
+                        <path d="M 0 10 L 10 10 M 0 20 L 10 20 M 0 30 L 10 30 M 0 40 L 10 40 M 0 50 L 10 50 M 0 60 L 10 60 M 0 70 L 10 70 M 0 80 L 10 80 M 0 90 L 90 90" stroke="#78350f" stroke-width="1.5"/>
+                    </svg>`;
+            } else if (type === 'ones') {
+                wrapper.className += ' w-3 h-3 bg-white border border-slate-300 rounded-sm shadow-sm';
+            }
+
+            return wrapper;
+        }
+
+        function checkFinalResult() {
+            const expectedSum = state.targetAugend + state.targetAddend;
+            const currentSum = (state.merged.hundreds * 100) + (state.merged.tens * 10) + state.merged.ones;
+
+            if (currentSum === expectedSum && state.merged.ones < 10 && state.merged.tens < 10) {
+                showNotice('🎉 恭喜你答對了！', `算式：${state.targetAugend} + ${state.targetAddend} = ${expectedSum}\n\n積木數量與直式進位皆完全正確！`, 'fa-solid fa-trophy', 'bg-emerald-100 text-emerald-600');
+            } else if (currentSum === expectedSum && (state.merged.ones >= 10 || state.merged.tens >= 10)) {
+                showNotice('提示：請完成進位', `積木總數正確 (${currentSum})！\n\n別忘了點擊半透明框框下的「滿10進位」按鈕，將滿 10 個積木合成更高位值！`, 'fa-solid fa-arrows-to-circle', 'bg-amber-100 text-amber-600');
+            } else {
+                showNotice('答案不正確喔', `目前積木合起來是 ${currentSum}，但正確答案應該是 ${expectedSum}。\n\n請檢查看看積木數量是否擺放正確！`, 'fa-solid fa-circle-xmark', 'bg-rose-100 text-rose-600');
+            }
+        }
+    </script>
+</body>
+</html>
